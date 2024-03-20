@@ -1,13 +1,14 @@
 import {Request, Response} from "express";
 import * as users from '../models/user.model';
 import Logger from '../../config/logger';
-import {validate} from "./validationController";
+import * as valid from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as secret from '../services/passwords';
+import {getUserByToken} from "../models/user.model";
 
 const register = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Register a new user into the server: ${req.body.firstName }')
-    const validation = await validate(schemas.user_register, req.body);
+    const validation = await valid.validate(schemas.user_register, req.body);
     if (validation !== true) {
         res.statusMessage = 'Bad Request. Invalid information';
         res.status(400).send();
@@ -51,7 +52,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
 
     try{
         const token = await users.createToken(email);
-        const userId = user[0].userId;
+        const userId = user[0].id;
         res.statusMessage = "Successfully gave a permission!";
         res.status(200).json({ token, userId });
         return;
@@ -65,10 +66,9 @@ const login = async (req: Request, res: Response): Promise<void> => {
 
 const logout = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Log out')
-    const email = req.body.email;
-
+    const token = req.get('X-Authorization');
     try{
-        await users.deleteToken(email);
+        await users.deleteToken(token);
         res.statusMessage = "Logged out!!";
         res.status(200).send();
         return;
@@ -81,10 +81,24 @@ const logout = async (req: Request, res: Response): Promise<void> => {
 }
 
 const view = async (req: Request, res: Response): Promise<void> => {
+    Logger.http('Show the user details');
+    const id = parseInt(req.params.id, 10);
+    if ( isNaN(id)) {
+        res.statusMessage = "Not Found. No user with specified ID";
+        res.status(404).send();
+    }
+    const user = await users.getUserById(id);
+    const firstName = user[0].firstName;
+    const lastName = user[0].lastName;
+    const email = user[0].email;
+    const token = user[0].authToken
+    if (token === null) {
+        res.status(200).json({firstName, lastName});
+        return;
+    }
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        res.statusMessage = "OK";
+        res.status(200).json({firstName, lastName, email});
         return;
     } catch (err) {
         Logger.error(err);
@@ -95,10 +109,59 @@ const view = async (req: Request, res: Response): Promise<void> => {
 }
 
 const update = async (req: Request, res: Response): Promise<void> => {
+    Logger.http('Updating details');
+
+    const id= parseInt(req.params.id, 10);
+    const user = await users.getUserById(id);
+    const validation = await valid.validate(schemas.user_edit, req.body);
+
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        if (validation !== true) {
+            res.statusMessage = 'Bad Request. Invalid information';
+            res.status(400).send();
+            return;
+        }
+        if (req.body.hasOwnProperty('email')) {
+            const checkEmail = await users.emailInUse(req.body.email);
+            if ( checkEmail.length === 0) {
+                res.statusMessage = "Email is already in use."
+                res.status(403).send();
+                return;
+            }
+            user[0].email = req.body.email;
+        }
+        if (req.body.hasOwnProperty('password') && req.body.hasOwnProperty('currentPassword')) {
+            if (req.body.password === req.body.currentPassword) {
+                res.statusMessage = "Identical current and new passwords/"
+                res.status(403).send();
+                return;
+            }
+            user[0].password = req.body.password;
+        }
+        if (req.body.hasOwnProperty('firstName')) {
+            if(req.body.firstName.length === 0) {
+                res.statusMessage = 'Bad Request. Invalid information';
+                res.status(400).send();
+                return;
+            } else {
+                user[0].firstName = req.body.firstName;
+            }
+        }
+        if (req.body.hasOwnProperty('lastName')) {
+            if(req.body.lastName.length === 0) {
+                res.statusMessage = 'Bad Request. Invalid information';
+                res.status(400).send();
+                return;
+            } else {
+                user[0].lastName = req.body.lastName;
+            }
+        }
+        if (user[0].authToken === null) {
+            res.statusMessage = "Unauthorized or Invalid currentPassword";
+            res.status(401).send();
+        }
+        res.statusMessage = "Successfully patched";
+        res.status(200).send();
         return;
     } catch (err) {
         Logger.error(err);

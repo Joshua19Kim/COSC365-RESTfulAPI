@@ -40,13 +40,29 @@ const createToken = async (userEmail: string): Promise<string> => {
     return token;
 }
 
-const deleteToken = async (userEmail: string)=> {
-    Logger.info(`Deleting Authentication to ${userEmail}`);
+const deleteToken = async (token: string)=> {
+    Logger.info(`Deleting Authentication`);
     const conn = await getPool().getConnection();
-    const query = 'UPDATE user SET auth_token = ? WHERE email = ?';
-    await conn.query (query, ['', userEmail]);
+    const query = 'UPDATE user SET auth_token = NULL WHERE auth_token = ?';
+    await conn.query(query, [token]);
     return
 }
+const getUserById = async (id: number): Promise<User[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT first_name as firstName, last_name as lastName, auth_token as authToken, email FROM user WHERE id = ?';
+    const [ result ] = await conn.query( query, [id]);
+    await conn.release();
+    return result;
+}
 
-export { registerUser, emailInUse, checkPassword, createToken, deleteToken }
+const getUserByToken = async (token: string): Promise<User[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT first_name as firstName, last_name as lastName, auth_token as authToken, email, password FROM user WHERE auth_token = ?';
+    const [ result ] = await conn.query( query, [token]);
+    await conn.release();
+    return result;
+}
+
+export { registerUser, emailInUse, checkPassword, createToken,
+    deleteToken, getUserById, getUserByToken }
 

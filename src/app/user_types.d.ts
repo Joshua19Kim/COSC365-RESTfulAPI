@@ -1,10 +1,10 @@
 type User = {
 
     email: string,
-    userId: number,
+    id: number,
     firstName: string,
     lastName: string,
     password: string,
     image: string,
-    auth_token: string
+    authToken: string
 }
