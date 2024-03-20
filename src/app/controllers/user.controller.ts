@@ -3,6 +3,7 @@ import * as users from '../models/user.model';
 import Logger from '../../config/logger';
 import {validate} from "./validationController";
 import * as schemas from '../resources/schemas.json';
+import * as secret from '../services/passwords';
 
 const register = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Register a new user into the server: ${req.body.firstName }')
@@ -15,7 +16,7 @@ const register = async (req: Request, res: Response): Promise<void> => {
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
     const email = req.body.email;
-    const password = req.body.password;
+    const hashedPassword = await secret.hash(req.body.password);
     const user = await users.emailInUse(email);
     if (user.length !== 0) {
         res.statusMessage = 'Email already in use';
@@ -24,7 +25,7 @@ const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     try{
-        const result = await users.registerUser(email, firstName, lastName, password)
+        const result = await users.registerUser(email, firstName, lastName, hashedPassword)
         res.statusMessage = "Created";
         res.status(201).send({"userId": result.insertId});
         return;
@@ -39,10 +40,20 @@ const register = async (req: Request, res: Response): Promise<void> => {
 const login = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Log in')
 
+    const email = req.body.email;
+    const password = req.body.password;
+    const user = await users.emailInUse(email);
+    if (!await users.checkPassword(email, password) || user.length === 0) {
+        res.statusMessage = "UnAuthorized. Incorrect email/password";
+        res.status(401).send();
+        return;
+    }
+
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        const token = await users.createToken(email);
+        const userId = user[0].userId;
+        res.statusMessage = "Successfully gave a permission!";
+        res.status(200).json({ token, userId });
         return;
     } catch (err) {
         Logger.error(err);
@@ -53,10 +64,13 @@ const login = async (req: Request, res: Response): Promise<void> => {
 }
 
 const logout = async (req: Request, res: Response): Promise<void> => {
+    Logger.http('Log out')
+    const email = req.body.email;
+
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        await users.deleteToken(email);
+        res.statusMessage = "Logged out!!";
+        res.status(200).send();
         return;
     } catch (err) {
         Logger.error(err);
