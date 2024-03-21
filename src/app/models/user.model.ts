@@ -16,9 +16,9 @@ const registerUser = async ( userEmail: string, firstName: string, lastName : st
 const emailInUse = async ( userEmail: string ): Promise<User[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT * FROM user WHERE email = ?';
-    const [ result ] = await conn.query( query, [userEmail]);
+    const [ user ] = await conn.query( query, [userEmail]);
     await conn.release();
-    return result;
+    return user;
 }
 
 const checkPassword = async (userEmail: string, password: string): Promise<boolean> => {
@@ -50,9 +50,9 @@ const deleteToken = async (token: string)=> {
 const getUserById = async (id: number): Promise<User[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT first_name as firstName, last_name as lastName, auth_token as authToken, email FROM user WHERE id = ?';
-    const [ result ] = await conn.query( query, [id]);
+    const [ user ] = await conn.query( query, [id]);
     await conn.release();
-    return result;
+    return user;
 }
 
 const getUserByToken = async (token: string): Promise<User[]> => {
@@ -63,6 +63,41 @@ const getUserByToken = async (token: string): Promise<User[]> => {
     return result;
 }
 
+const isThereId = async (id: number): Promise<number> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT COUNT(*) as count FROM user WHERE id = ?';
+    const [ countNumber ] = await conn.query( query, [id]);
+    await conn.release();
+    return countNumber;
+}
+
+const updateDetails = async (id: number, userEmail: string, firstName: string, lastName:string, password:string): Promise<void> => {
+    Logger.info(`Updating details`);
+    const conn = await getPool().getConnection();
+    const query = 'UPDATE user SET email = ?, first_name = ?, last_name = ?, password = ? WHERE id = ?';
+    await conn.query (query, [userEmail, firstName, lastName, password, id ]);
+    await conn.release();
+}
+
+const getImageFilename = async (id:number): Promise<string> => {
+    const query = 'SELECT `image_filename` FROM `user` WHERE id = ?'
+    const rows = await getPool().query(query, [id])
+    return rows[0].length === 0 ? null: rows[0][0].image_filename;
+}
+
+const setImageFileName = async (id: number, filename: string): Promise<void> => {
+    const query = `UPDATE \`user\` SET image_filename = ? WHERE id = ?`;
+    const result = await getPool().query(query, [filename, id]);
+}
+
+const removeImageFilename = async (id: number): Promise<void> => {
+    const query = `UPDATE \`user\` SET image_filename = NULL WHERE id = ?`;
+    const result = await getPool().query(query, [id]);
+}
+
+
+
 export { registerUser, emailInUse, checkPassword, createToken,
-    deleteToken, getUserById, getUserByToken }
+    deleteToken, getUserById, getUserByToken, isThereId, updateDetails,
+    getImageFilename, setImageFileName, removeImageFilename }
 

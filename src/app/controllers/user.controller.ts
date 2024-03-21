@@ -82,10 +82,17 @@ const logout = async (req: Request, res: Response): Promise<void> => {
 
 const view = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Show the user details');
-    const id = parseInt(req.params.id, 10);
-    if ( isNaN(id)) {
+    if ( isNaN(parseInt(req.params.id, 10))) {
         res.statusMessage = "Not Found. No user with specified ID";
         res.status(404).send();
+        return;
+    }
+    const id = parseInt(req.params.id, 10);
+    const idExists = await users.isThereId(id);
+    if ( idExists === 0) {
+        res.statusMessage = "Not Found. No user with specified ID";
+        res.status(404).send();
+        return;
     }
     const user = await users.getUserById(id);
     const firstName = user[0].firstName;
@@ -110,12 +117,15 @@ const view = async (req: Request, res: Response): Promise<void> => {
 
 const update = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Updating details');
-
-    const id= parseInt(req.params.id, 10);
-    const user = await users.getUserById(id);
-    const validation = await valid.validate(schemas.user_edit, req.body);
-
     try{
+        const id= parseInt(req.params.id, 10);
+        if ( isNaN(id)) {
+            res.statusMessage = "Not Found. No user with specified ID";
+            res.status(404).send();
+            return;
+        }
+        const user = await users.getUserById(id);
+        const validation = await valid.validate(schemas.user_edit, req.body);
         if (validation !== true) {
             res.statusMessage = 'Bad Request. Invalid information';
             res.status(400).send();
@@ -136,7 +146,7 @@ const update = async (req: Request, res: Response): Promise<void> => {
                 res.status(403).send();
                 return;
             }
-            user[0].password = req.body.password;
+            user[0].password = await secret.hash(req.body.password);
         }
         if (req.body.hasOwnProperty('firstName')) {
             if(req.body.firstName.length === 0) {
@@ -156,13 +166,17 @@ const update = async (req: Request, res: Response): Promise<void> => {
                 user[0].lastName = req.body.lastName;
             }
         }
-        if (user[0].authToken === null) {
+        const token = req.get('X-Authorization');
+        if (user[0].authToken === null || user[0].authToken !== token) {
             res.statusMessage = "Unauthorized or Invalid currentPassword";
             res.status(401).send();
+            return;
         }
+        await users.updateDetails(id, user[0].email, user[0].firstName, user[0].lastName, user[0].password);
         res.statusMessage = "Successfully patched";
         res.status(200).send();
         return;
+
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";
