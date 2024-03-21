@@ -6,5 +6,6 @@ type User = {
     lastName: string,
     password: string,
     image: string,
-    authToken: string
+    authToken: string,
+    filename: string
 }

@@ -88,13 +88,12 @@ const view = async (req: Request, res: Response): Promise<void> => {
         return;
     }
     const id = parseInt(req.params.id, 10);
-    const idExists = await users.isThereId(id);
-    if ( idExists === 0) {
+    const user = await users.getUserById(id);
+    if (!user[0]) {
         res.statusMessage = "Not Found. No user with specified ID";
         res.status(404).send();
         return;
     }
-    const user = await users.getUserById(id);
     const firstName = user[0].firstName;
     const lastName = user[0].lastName;
     const email = user[0].email;
