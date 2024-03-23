@@ -41,7 +41,7 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         if (req.query.hasOwnProperty("supporterId")) {
             req.query.supporterId = parseInt(req.query.supporterId as string, 10) as any;
         }
-        let defaultSearch: petitionQuery = {
+        let defaultSearch: PetitionQuery = {
             q: '',
             startIndex: 0,
             count: -1,
@@ -51,7 +51,7 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
             supporterId: -1,
             sortBy: 'CREATED_ASC'
         }
-        defaultSearch = {...defaultSearch, ...req.query} as petitionQuery;
+        defaultSearch = {...defaultSearch, ...req.query} as PetitionQuery;
 
         const result = await Petition.showAll(defaultSearch);
         res.statusMessage = "OK";
