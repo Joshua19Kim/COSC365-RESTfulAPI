@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { compare } from "../services/passwords";
 
 const registerUser = async ( userEmail: string, firstName: string, lastName : string, password: string): Promise<ResultSetHeader> => {
-    Logger.info(`Registering User ${firstName + lastName}`);
     const conn = await getPool().getConnection();
     const query = 'insert into user (email, first_name, last_name, password) values(?,?,?,?)';
     const [ result ] = await conn.query( query, [ userEmail, firstName, lastName, password]);
@@ -31,7 +30,6 @@ const checkPassword = async (userEmail: string, password: string): Promise<boole
 }
 
 const createToken = async (userEmail: string): Promise<string> => {
-    Logger.info(`Providing Authentication to ${userEmail}`);
     const conn = await getPool().getConnection();
     const token = uuidv4();
     const query = 'UPDATE user SET auth_token = ? WHERE email = ?';
@@ -41,7 +39,6 @@ const createToken = async (userEmail: string): Promise<string> => {
 }
 
 const deleteToken = async (token: string)=> {
-    Logger.info(`Deleting Authentication`);
     const conn = await getPool().getConnection();
     const query = 'UPDATE user SET auth_token = NULL WHERE auth_token = ?';
     await conn.query(query, [token]);
@@ -64,7 +61,6 @@ const getUserByToken = async (token: string): Promise<User[]> => {
 }
 
 const updateDetails = async (id: number, userEmail: string, firstName: string, lastName:string, password:string): Promise<void> => {
-    Logger.info(`Updating details`);
     const conn = await getPool().getConnection();
     const query = 'UPDATE user SET email = ?, first_name = ?, last_name = ?, password = ? WHERE id = ?';
     await conn.query(query, [userEmail, firstName, lastName, password, id]);

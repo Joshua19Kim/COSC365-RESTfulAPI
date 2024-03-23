@@ -17,8 +17,8 @@ const removeImage = async (filename: string): Promise<void> => {
     }
 }
 
-const addImage = async (image:any, fileExt: string): Promise<string> => {
-    const filename = generate(32) + fileExt;
+const addImage = async (image:any, fileExtension: string): Promise<string> => {
+    const filename = generate(32) + fileExtension;
 
     try {
         await fs.writeFile(filepath + filename, image);
@@ -31,9 +31,15 @@ const addImage = async (image:any, fileExt: string): Promise<string> => {
 }
 
 const getImageMimetype = (filename: string): string => {
-    if (filename.endsWith('.jpeg') || filename.endsWith('.jpg')) return 'image/jpeg';
-    if (filename.endsWith('.png')) return 'image/png';
-    if (filename.endsWith('.gif')) return 'image/gif';
+    if (filename.endsWith('.jpeg') || filename.endsWith('.jpg')) {
+        return 'image/jpeg';
+    }
+    if (filename.endsWith('.gif')) {
+        return 'image/gif';
+    }
+    if (filename.endsWith('.png')) {
+        return 'image/png';
+    }
     return 'application/octet-stream';
 }
 
