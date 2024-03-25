@@ -33,6 +33,13 @@ type PetitionForView = {
     supportingCost:number
 }
 
+type PetitionUpdate = {
+    petitionId: number,
+    title: string,
+    description: string,
+    authToken: string
+}
+
 
 type PetitionReturn = {
     petitions: PetitionForView[],
@@ -61,4 +68,11 @@ type PetitionQuery = {
     ownerId?: number,
     supporterId?: number,
     sortBy?: string
+}
+
+type SupportTier = {
+    supportTierId: number,
+    title: string,
+    description: string,
+    cost: number
 }

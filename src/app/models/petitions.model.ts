@@ -1,4 +1,5 @@
 import {getPool} from "../../config/db";
+import {ResultSetHeader} from "mysql2";
 
 const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => {
     let query = 'SELECT ' +
@@ -31,7 +32,7 @@ const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => 
         values.push(`%${petitionQuery.q}%`);
     }
     if (petitionQuery.supporterId) {
-        whereCondition.push('Sup.id = ? ');
+        whereCondition.push('Sup.user_id = ? ');
         values.push(petitionQuery.supporterId);
     }
     if (petitionQuery.ownerId) {
@@ -122,12 +123,100 @@ const getOnePetition = async (id: number):Promise<OnePetitionReturn> => {
     return onePetition;
 }
 
+const getPetitionById = async (id: number): Promise<PetitionUpdate> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT Pet.title as title, Pet.description as description, Pet.id as petitionId, User.auth_token as authToken FROM petition Pet JOIN  user User on Pet.owner_id = User.id WHERE Pet.id = ?';
+    const [ petition ] = await conn.query( query, [id]);
+    await conn.release();
+    return petition[0];
+}
 
-const getCategories = async (): Promise<Category[]> => {
+const getAllCategories = async (): Promise<Category[]> => {
     const query = `SELECT id as categoryId, name as categoryName FROM category`
     const rows = await getPool().query(query)
     return rows[0] as Category[];
 }
+const checkCategoryRef  = async (categoryId: string):Promise<Category[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT * FROM category WHERE id = ?';
+    const [category] = await conn.query(query, [categoryId]);
+    await conn.release();
+    return category;
+}
+
+const ckeckSupportTierTitleExistence = async (supportTierTitle: string):Promise<SupportTier[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT * FROM support_tier WHERE title = ?';
+    const [supportTier] = await conn.query(query, [supportTierTitle]);
+    await conn.release();
+    return supportTier;
+}
+
+const addPet = async (title:string, description:string, categoryId:number, ownerId:number):Promise<ResultSetHeader> => {
+    const datenow = Date.now();
+    const conn = await getPool().getConnection();
+    const query = 'INSERT INTO petition (title, description, category_id, creation_date, owner_id) VALUES ( ? , ? , ?, NOW(), ? )';
+    const [result] = await conn.query(query, [title, description, categoryId, ownerId ]);
+    await conn.release();
+    return result;
+}
+const addSupportTier = async (title:string, description:string, cost:number):Promise<ResultSetHeader> => {
+    const conn = await getPool().getConnection();
+    const query = 'INSERT INTO support_tier (title, description, cost) VALUES ( ? , ? , ? )';
+    const [result] = await conn.query(query, [title, description, cost]);
+    await conn.release();
+    return result;
+}
+
+// const editOne = async (id: number, title: string, description: string, releaseDate: string, ageRating: string, genreId: number, runtime: number): Promise<boolean> => {
+//     const query = `UPDATE film SET title=?, description=?, release_date=?, age_rating=?, genre_id=?, runtime=? WHERE id=?`;
+//     const [result] = await getPool().query(query, [title, description, releaseDate, ageRating, genreId, runtime, id]);
+//     return result && result.affectedRows === 1;
+// }
+//
+// const deleteOne = async (id: number): Promise<boolean> => {
+//     const query = `DELETE FROM film WHERE id = ?`;
+//     const [result] = await getPool().query(query, id);
+//     return result && result.affectedRows === 1;
+// }
 
 
-export { showAll, getOnePetition, getCategories }
+const updatePetition = async (title: string, description: string, cost: number, petitionId: number): Promise<void> => {
+    let query = 'UPDATE petition JOIN support_tier SupTier ON SupTier.petition_id = petition.id'
+
+    const setCondition: string[] = []
+    const values: any[] = []
+    if (title !== "") {
+        setCondition.push('petition.title = ? ')
+        values.push(title)
+    }
+    if (description !== "") {
+        setCondition.push('petition.description = ? ')
+        values.push(description)
+    }
+    if (cost !== null) {
+        setCondition.push('SupTier.cost = ? ')
+        values.push(cost)
+    }
+    if (setCondition.length) {
+        query += `SET ${(setCondition ? setCondition.join(', ') : 1)} `
+    }
+    query += 'WHERE id = ? ';
+    values.push(petitionId);
+    const conn = await getPool().getConnection();
+    await conn.query(query, [title, description, cost, petitionId] );
+    await conn.release();
+    return;
+}
+
+const checkTitleExistence = async (title: string):Promise<Petition[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT * FROM petition WHERE title = ?';
+    const [ petition ] = await conn.query( query, [title]);
+    await conn.release();
+    return petition;
+}
+
+
+export { showAll, getOnePetition, getPetitionById, getAllCategories, checkCategoryRef, updatePetition
+    , addPet, addSupportTier, checkTitleExistence, ckeckSupportTierTitleExistence }

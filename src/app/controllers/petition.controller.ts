@@ -3,7 +3,9 @@ import Logger from '../../config/logger';
 import {validate} from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as Petition from '../models/petitions.model';
-import {getOnePetition} from "../models/petitions.model";
+import {addSupportTier} from "../models/petitions.model";
+import {getUserByToken} from "../models/user.model";
+
 
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
     Logger.http("Request to show all petitions")
@@ -26,7 +28,7 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
             } else {
                 req.query.categoryIds = (req.query.categoryIds as string[]).map((x: string) => parseInt(x, 10)) as any;
             }
-            const category = await Petition.getCategories()
+            const category = await Petition.getAllCategories()
             if (!(req.query.categoryIds as any as number[]).every(c => category.map(x => x.categoryId).includes(c))) {
                 res.statusMessage = "Bad Request";
                 res.status(400).send();
@@ -68,14 +70,21 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
 
 
 const getPetition = async (req: Request, res: Response): Promise<void> => {
+    Logger.http('get the petition with ID number')
     try{
+        const validation = await validate(schemas.petition_search, req.query);
+        if (validation !== true) {
+            res.statusMessage = `Bad Request`;
+            res.status(400).send();
+            return;
+        }
         if ( isNaN(parseInt(req.params.id, 10))) {
             res.statusMessage = "ID must be an integer";
             res.status(404).send();
             return;
         }
         const id = parseInt(req.params.id, 10);
-        const result = await getOnePetition(id);
+        const result = await Petition.getOnePetition(id);
         if (result === undefined) {
             res.statusMessage = "Not Found. No petition with ID";
             res.status(404).send();
@@ -95,9 +104,60 @@ const getPetition = async (req: Request, res: Response): Promise<void> => {
 
 const addPetition = async (req: Request, res: Response): Promise<void> => {
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        const token = req.get('X-Authorization');
+        const user = await getUserByToken(token);
+        if (user.length === 0) {
+            res.statusMessage = `Unauthorized`;
+            res.status(401).send();
+            return;
+        }
+        const validation = await validate(schemas.petition_post, req.body);
+        if (validation !== true) {
+            res.statusMessage = `Bad Request`;
+            res.status(400).send();
+            return;
+        }
+        if (req.body.title === "") {
+            res.statusMessage = "Bad request! Need title name!"
+            res.status(400).send();
+        }
+        if (req.body.hasOwnProperty("title")) {
+            const checkTitle = await Petition.checkTitleExistence(req.body.title);
+             if (checkTitle.length !== 0) {
+                res.statusMessage = "Forbidden. Petition title already exists"
+                res.status(403).send();
+            }
+        }
+        if (req.body.hasOwnProperty("categoryId")) {
+            const checkCategoryId = await Petition.checkCategoryRef(req.body.categoryId);
+            if (checkCategoryId.length === 0) {
+                res.statusMessage = "Bad request! It must reference an existing category."
+                res.status(400).send();
+            }
+        }
+        const supportTiers = req.body.supportTiers;
+        if (supportTiers.length <= 0 || supportTiers.length > 3) {
+            res.statusMessage = "Bad request! A petition must have between 1 and 3 supportTiers(inclusive)."
+            res.status(400).send();
+        } else {
+            // tslint:disable-next-line:prefer-for-of
+            for(let i = 0; i < supportTiers.length; i++) {
+                const titleCheck = await Petition.ckeckSupportTierTitleExistence(supportTiers[i].title)
+                if (titleCheck.length !== 0) {
+                    res.statusMessage = "Bad request! SupportTier title must be unique."
+                    res.status(400).send();
+                }
+            }
+        }
+        const ownerId = user[0].id;
+        const newPetition = await Petition.addPet(req.body.title, req.body.description, req.body.categoryId, ownerId);
+        // tslint:disable-next-line:prefer-for-of
+        for(let i = 0; i < supportTiers.length; i++) {
+            const newSupportTier = await Petition.addSupportTier(supportTiers[i].title, supportTiers[i].description, supportTiers[i].cost);
+        }
+
+        res.statusMessage = "OK";
+        res.status(200).send();
         return;
     } catch (err) {
         Logger.error(err);
@@ -108,10 +168,60 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
 }
 
 const editPetition = async (req: Request, res: Response): Promise<void> => {
+    Logger.http("Update petition!");
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        const token = req.get('X-Authorization');
+        const user = await getUserByToken(token);
+        if (user.length === 0) {
+            res.statusMessage = `Unauthorized`;
+            res.status(401).send();
+            return;
+        }
+        const validation = await validate(schemas.petition_patch, req.body);
+        if (validation !== true) {
+            res.statusMessage = 'Bad Request. Invalid information';
+            res.status(400).send();
+            return;
+        }
+        if ( isNaN(parseInt(req.params.id, 10))) {
+            res.statusMessage = "ID must be an integer.";
+            res.status(404).send();
+            return;
+        }
+        const petitionId = parseInt(req.params.id, 10);
+        const petition = (await Petition.getPetitionById(petitionId));
+        if (petition.petitionId === null ){
+            res.statusMessage = "Not Found. No petition found with id."
+            res.status(404).send();
+            return;
+        }
+        if (petition.authToken === null || petition.authToken !== token) {
+            res.statusMessage = "Only the owner of a petition may change it.";
+            res.status(403).send();
+            return;
+        }
+        let title = "";
+        if (req.body.hasOwnProperty("title")) {
+            title = req.body.title;
+            const checkTitle = await Petition.checkTitleExistence(title);
+            if (checkTitle.length !== 0) {
+                res.statusMessage = "Forbidden. Petition title already exists"
+                res.status(403).send();
+            }
+        }
+        let description = "";
+        if (req.body.hasOwnProperty("description")) {
+            description = req.body.description;
+        }
+        let cost = null;
+        if (req.body.hasOwnProperty("cost")) {
+            cost = req.body.cost;
+        }
+
+        await Petition.updatePetition(req.body.title, req.body.description, req.body.cost, petitionId);
+
+        res.statusMessage = "OK";
+        res.status(200).send();
         return;
     } catch (err) {
         Logger.error(err);
@@ -137,9 +247,10 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
 
 const getCategories = async(req: Request, res: Response): Promise<void> => {
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        Logger.http("Show all categories!")
+        const allCategories = await Petition.getAllCategories();
+        res.statusMessage = "OK";
+        res.status(200).send(allCategories);
         return;
     } catch (err) {
         Logger.error(err);

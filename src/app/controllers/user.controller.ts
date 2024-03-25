@@ -7,7 +7,7 @@ import * as secret from '../services/passwords';
 import {getUserByToken} from "../models/user.model";
 
 const register = async (req: Request, res: Response): Promise<void> => {
-    Logger.http('Register a new user into the server: ${req.body.firstName }')
+    Logger.http('Register a new user into the server')
     const validation = await valid.validate(schemas.user_register, req.body);
     if (validation !== true) {
         res.statusMessage = 'Bad Request. Invalid information';
@@ -83,7 +83,7 @@ const logout = async (req: Request, res: Response): Promise<void> => {
 const view = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Show the user details');
     if ( isNaN(parseInt(req.params.id, 10))) {
-        res.statusMessage = "Not Found. No user with specified ID";
+        res.statusMessage = "ID must be an integer.";
         res.status(404).send();
         return;
     }

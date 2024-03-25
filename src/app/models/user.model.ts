@@ -54,7 +54,7 @@ const getUserById = async (id: number): Promise<User[]> => {
 
 const getUserByToken = async (token: string): Promise<User[]> => {
     const conn = await getPool().getConnection();
-    const query = 'SELECT first_name as firstName, last_name as lastName, auth_token as authToken, email, password FROM user WHERE auth_token = ?';
+    const query = 'SELECT first_name as firstName, last_name as lastName, auth_token as authToken, email, id, password FROM user WHERE auth_token = ?';
     const [ result ] = await conn.query( query, [token]);
     await conn.release();
     return result;
@@ -69,12 +69,12 @@ const updateDetails = async (id: number, userEmail: string, firstName: string, l
 
 const setImageFile = async (id: number, filename: string): Promise<void> => {
     const query = `UPDATE \`user\` SET image_filename = ? WHERE id = ?`;
-    const result = await getPool().query(query, [filename, id]);
+    await getPool().query(query, [filename, id]);
 }
 
 const removeImageFile = async (id: number): Promise<void> => {
     const query = `UPDATE \`user\` SET image_filename = NULL WHERE id = ?`;
-    const result = await getPool().query(query, [id]);
+    await getPool().query(query, [id]);
 }
 
 
