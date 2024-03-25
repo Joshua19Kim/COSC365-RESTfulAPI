@@ -3,6 +3,7 @@ import Logger from '../../config/logger';
 import {validate} from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as Petition from '../models/petitions.model';
+import {getOnePetition} from "../models/petitions.model";
 
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
     Logger.http("Request to show all petitions")
@@ -44,11 +45,11 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
         let defaultSearch: PetitionQuery = {
             q: '',
             startIndex: 0,
-            count: -1,
+            count: null,
             categoryIds: [],
-            supportingCost: -1,
-            ownerId: -1,
-            supporterId: -1,
+            supportingCost: null,
+            ownerId: null,
+            supporterId: null,
             sortBy: 'CREATED_ASC'
         }
         defaultSearch = {...defaultSearch, ...req.query} as PetitionQuery;
@@ -68,10 +69,22 @@ const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
 
 const getPetition = async (req: Request, res: Response): Promise<void> => {
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
-        return;
+        if ( isNaN(parseInt(req.params.id, 10))) {
+            res.statusMessage = "ID must be an integer";
+            res.status(404).send();
+            return;
+        }
+        const id = parseInt(req.params.id, 10);
+        const result = await getOnePetition(id);
+        if (result === undefined) {
+            res.statusMessage = "Not Found. No petition with ID";
+            res.status(404).send();
+            return;
+        } else {
+            res.statusMessage = "OK";
+            res.status(200).send(result);
+            return;
+        }
     } catch (err) {
         Logger.error(err);
         res.statusMessage = "Internal Server Error";

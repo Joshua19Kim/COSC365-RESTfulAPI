@@ -39,12 +39,18 @@ type PetitionReturn = {
     count: number
 }
 
-type SupportTier = {
-    supportTierId: number,
-    petitionId: number,
-    title: string,
-    description: string,
-    cost: number
+type OnePetitionReturn = {
+    "petitionId": number,
+    "title": string,
+    "categoryId": number,
+    "ownerId": number,
+    "ownerFirstName": string,
+    "ownerLastName": string,
+    "numberOfSupporters": number,
+    "creationDate": string,
+    "description": string,
+    "moneyRaised": string,
+    "supportTiers": [{"title":string, "description":string, "cost":number, "id": number}]
 }
 type PetitionQuery = {
     q?: string,

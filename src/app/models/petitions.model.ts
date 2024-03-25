@@ -9,18 +9,17 @@ const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => 
         'User.first_name as ownerFirstName, ' +
         'User.last_name as ownerLastName, ' +
         'Pet.creation_date as creationDate, ' +
-        'supporter.id' +
         'MIN(SupTier.cost) as supportingCost ' +
         'FROM petition as Pet ' +
-        'INNER JOIN user User ON Pet.owner_id = User.id ' +
-        'INNER JOIN support_tier SupTier ON SupTier.petition_id = Pet.id ' +
-        'INNER JOIN supporter ON Sup.petition_id = Pet.id ';
+        'JOIN user User ON Pet.owner_id = User.id ' +
+        'JOIN support_tier SupTier ON SupTier.petition_id = Pet.id ' +
+        'JOIN supporter Sup ON Sup.petition_id = Pet.id ';
 
     let countQuery = 'SELECT COUNT(Pet.id) AS totalCount ' +
         'FROM petition Pet ' +
-        'INNER JOIN user User ON Pet.owner_id = User.id ' +
-        'INNER JOIN support_tier SupTier ON SupTier.petition_id = Pet.id ' +
-        'INNER JOIN supporter Sup ON Sup.petition_id = Pet.id ';
+        'JOIN user User ON Pet.owner_id = User.id ' +
+        'JOIN support_tier SupTier ON SupTier.petition_id = Pet.id ' +
+        'JOIN supporter Sup ON Sup.petition_id = Pet.id ';
 
 
 
@@ -31,17 +30,23 @@ const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => 
         values.push(`%${petitionQuery.q}%`);
         values.push(`%${petitionQuery.q}%`);
     }
-    if (petitionQuery.supporterId && petitionQuery.supporterId !== -1) {
+    if (petitionQuery.supporterId) {
         whereCondition.push('Sup.id = ? ');
         values.push(petitionQuery.supporterId);
     }
-    if (petitionQuery.categoryIds && petitionQuery.categoryIds.length) {
-        query += 'INNER JOIN category Cat ON Cat.id = Pet.category_id ';
-        countQuery += 'INNER JOIN category Cat ON Cat.id = Pet.category_id ';
-        whereCondition.push('category_id = ? ');
-        values.push(petitionQuery.categoryIds);
+    if (petitionQuery.ownerId) {
+        whereCondition.push('Pet.owner_id = ? ');
+        values.push(petitionQuery.ownerId);
     }
-    if (petitionQuery.supportingCost && petitionQuery.supportingCost !== -1) {
+    if (petitionQuery.categoryIds && petitionQuery.categoryIds.length) {
+        query += 'JOIN category Cat ON Cat.id = Pet.category_id ';
+        countQuery += 'JOIN category Cat ON Cat.id = Pet.category_id ';
+        whereCondition.push('category_id IN (' + petitionQuery.categoryIds.map(() =>'?').join(', ') + ')');
+        values.push(...petitionQuery.categoryIds);
+    }
+    if (petitionQuery.supportingCost === 0) {
+        whereCondition.push(('SupTier.cost = 0'))
+    } else if (petitionQuery.supportingCost > 0) {
         whereCondition.push('SupTier.cost <= ? ');
         values.push(petitionQuery.supportingCost);
     }
@@ -57,25 +62,16 @@ const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => 
     const sortSwitch = (sort: string) => ({
         'ALPHABETICAL_ASC': 'ORDER BY Pet.title ASC',
         'ALPHABETICAL_DESC': 'ORDER BY Pet.title DESC',
-        'COST_ASC': 'ORDER BY SupTier.cost ASC',
-        'COST_DESC': 'ORDER BY SupTier.cost DESC',
+        'COST_ASC': 'ORDER BY supportingCost ASC',
+        'COST_DESC': 'ORDER BY supportingCost DESC',
         'CREATED_ASC': 'ORDER BY Pet.creation_date ASC',
         'CREATED_DESC': 'ORDER BY Pet.creation_date DESC',
     })[sort];
     query += sortSwitch(petitionQuery.sortBy) + ', petitionId\n';
-
-    if (petitionQuery.count && petitionQuery.count !== -1) {
-        query += ' LIMIT ?\n';
-        values.push(petitionQuery.count);
-    }
-    if(petitionQuery.startIndex && petitionQuery.startIndex !== -1) {
-        if (!petitionQuery.count || petitionQuery.count === -1) {
-            query += ' LIMIT ?\n';
-            values.push(10000000);
-        }
-        query += 'OFFSET ?\n';
-        values.push(petitionQuery.startIndex);
-    }
+    query += ' LIMIT ?\n';
+    values.push(petitionQuery.count ? petitionQuery.count : 10000000);
+    query += 'OFFSET ?\n';
+    values.push(petitionQuery.startIndex);
     // const conn = await getPool().getConnection();
     const rows = await getPool().query(query,values);
     const petitions = rows[0];
@@ -84,14 +80,54 @@ const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => 
     return {petitions, count} as PetitionReturn;
 
 }
+const getOnePetition = async (id: number):Promise<OnePetitionReturn> => {
+    const petitionQuery = 'SELECT ' +
+        'Pet.id as petitionId, ' +
+        'Pet.title as title, ' +
+        'Pet.category_id as categoryId, ' +
+        'Pet.owner_id as ownerId, ' +
+        'User.first_name as ownerFirstName, ' +
+        'User.last_name as ownerLastName, ' +
+        '(SELECT COUNT(Sup.id) FROM supporter Sup JOIN petition Pet ON Sup.petition_id = Pet.id WHERE Sup.petition_id = Pet.id) as numberOfSupporters, ' +
+        'Pet.creation_date as creationDate, ' +
+        'Pet.description as description, '+
+        '(SELECT SUM(SupTier.cost) FROM support_tier SupTier JOIN petition Pet ON SupTier.petition_id = Pet.id) as moneyRaised ' +
+        'FROM petition as Pet ' +
+        'JOIN user User ON Pet.owner_id = User.id ' +
+        'WHERE Pet.id = ?';
+    const supportTiersQuery = 'SELECT ' +
+        'SupTier.title, SupTier.description, SupTier.cost, SupTier.id ' +
+        'FROM support_tier SupTier ' +
+        'JOIN petition Pet ON SupTier.petition_id = Pet.id WHERE Pet.id = ?';
 
+    const petitionRows = await getPool().query(petitionQuery, id);
+    if (petitionRows[0].length ===0) {
+        return undefined;
+    }
+    const supportTiersQueryRows = await getPool().query(supportTiersQuery, id);
+
+    const onePetition: OnePetitionReturn = {
+        petitionId: petitionRows[0][0].petitionId,
+        title: petitionRows[0][0].title,
+        categoryId: petitionRows[0][0].categoryId,
+        ownerId: petitionRows[0][0].ownerId,
+        ownerFirstName: petitionRows[0][0].ownerFirstName,
+        ownerLastName: petitionRows[0][0].ownerLastName,
+        numberOfSupporters: petitionRows[0][0].numberOfSupporters,
+        creationDate: petitionRows[0][0].creationDate,
+        description: petitionRows[0][0].description,
+        moneyRaised: petitionRows[0][0].moneyRaised,
+        supportTiers: supportTiersQueryRows[0],
+    };
+    return onePetition;
+}
 
 
 const getCategories = async (): Promise<Category[]> => {
-    const query = `SELECT id as categoryId, name as categoryName name FROM category`
+    const query = `SELECT id as categoryId, name as categoryName FROM category`
     const rows = await getPool().query(query)
     return rows[0] as Category[];
 }
 
 
-export { showAll, getCategories }
+export { showAll, getOnePetition, getCategories }

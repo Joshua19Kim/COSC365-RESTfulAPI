@@ -67,12 +67,12 @@ const updateDetails = async (id: number, userEmail: string, firstName: string, l
     await conn.release();
 }
 
-const setImageFileName = async (id: number, filename: string): Promise<void> => {
+const setImageFile = async (id: number, filename: string): Promise<void> => {
     const query = `UPDATE \`user\` SET image_filename = ? WHERE id = ?`;
     const result = await getPool().query(query, [filename, id]);
 }
 
-const removeImageFilename = async (id: number): Promise<void> => {
+const removeImageFile = async (id: number): Promise<void> => {
     const query = `UPDATE \`user\` SET image_filename = NULL WHERE id = ?`;
     const result = await getPool().query(query, [id]);
 }
@@ -81,5 +81,5 @@ const removeImageFilename = async (id: number): Promise<void> => {
 
 export { registerUser, emailInUse, checkPassword, createToken,
     deleteToken, getUserById, getUserByToken, updateDetails,
-    setImageFileName, removeImageFilename }
+    setImageFile, removeImageFile }
 

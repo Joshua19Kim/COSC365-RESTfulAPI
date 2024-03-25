@@ -73,7 +73,7 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             isNew = false;
         }
         const newFilename = await imageModel.addImage(image, fileExtension);
-        await Users.setImageFileName(userId, newFilename);
+        await Users.setImageFile(userId, newFilename);
         if(isNew) {
             res.statusMessage = 'Created. New image created'
             res.status(201).send()
@@ -115,7 +115,7 @@ const deleteImage = async (req: Request, res: Response): Promise<void> => {
         }
         const savedFilename = user[0].filename;
         await imageModel.removeImage(savedFilename);
-        await Users.removeImageFilename(userId)
+        await Users.removeImageFile(userId)
         res.statusMessage = 'OK'
         res.status(200).send();
     }
