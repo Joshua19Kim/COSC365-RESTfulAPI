@@ -143,7 +143,6 @@ const checkCategoryRef  = async (categoryId: string):Promise<Category[]> => {
     await conn.release();
     return category;
 }
-
 const ckeckSupportTierTitleExistence = async (supportTierTitle: string):Promise<SupportTier[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT * FROM support_tier WHERE title = ?';
@@ -160,29 +159,36 @@ const addPet = async (title:string, description:string, categoryId:number, owner
     await conn.release();
     return result;
 }
-const addSupportTier = async (title:string, description:string, cost:number):Promise<ResultSetHeader> => {
+const findPetitionIdByTitle = async (title:string):Promise<Petition[]> => {
     const conn = await getPool().getConnection();
-    const query = 'INSERT INTO support_tier (title, description, cost) VALUES ( ? , ? , ? )';
-    const [result] = await conn.query(query, [title, description, cost]);
+    const query = 'SELECT id as petitionId FROM petition WHERE title = ?';
+    const [petition] = await conn.query(query, [title]);
+    await conn.release();
+    return petition;
+}
+const addSupportTier = async (title:string, description:string, cost:number, petitionId:number):Promise<ResultSetHeader> => {
+    const conn = await getPool().getConnection();
+    const query = 'INSERT INTO support_tier (title, description, cost, petition_id) VALUES ( ? , ? , ? , ? )';
+    const [result] = await conn.query(query, [title, description, cost, petitionId]);
     await conn.release();
     return result;
 }
 
-// const editOne = async (id: number, title: string, description: string, releaseDate: string, ageRating: string, genreId: number, runtime: number): Promise<boolean> => {
-//     const query = `UPDATE film SET title=?, description=?, release_date=?, age_rating=?, genre_id=?, runtime=? WHERE id=?`;
-//     const [result] = await getPool().query(query, [title, description, releaseDate, ageRating, genreId, runtime, id]);
-//     return result && result.affectedRows === 1;
-// }
-//
-// const deleteOne = async (id: number): Promise<boolean> => {
-//     const query = `DELETE FROM film WHERE id = ?`;
-//     const [result] = await getPool().query(query, id);
-//     return result && result.affectedRows === 1;
-// }
-
-
-const updatePetition = async (title: string, description: string, cost: number, petitionId: number): Promise<void> => {
-    let query = 'UPDATE petition JOIN support_tier SupTier ON SupTier.petition_id = petition.id'
+const checkSupporter = async (petitionId: number):Promise<Supporter[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT * FROM supporter WHERE petition_id = ?';
+    const [supporter] = await conn.query(query, [petitionId]);
+    await conn.release();
+    return supporter;
+}
+const deletePetition = async (petitionId: number ): Promise<void> => {
+    const conn = await getPool().getConnection();
+    const query = 'DELETE FROM petition WHERE id = ? ';
+    await conn.query(query, [petitionId]);
+    await conn.release();
+}
+const updatePetition = async (title: string, description: string, categoryId: number, petitionId: number): Promise<void> => {
+    let query = 'UPDATE petition '
 
     const setCondition: string[] = []
     const values: any[] = []
@@ -194,17 +200,17 @@ const updatePetition = async (title: string, description: string, cost: number, 
         setCondition.push('petition.description = ? ')
         values.push(description)
     }
-    if (cost !== null) {
-        setCondition.push('SupTier.cost = ? ')
-        values.push(cost)
+    if (categoryId !== null) {
+        setCondition.push('petition.category_id = ? ')
+        values.push(categoryId)
     }
     if (setCondition.length) {
-        query += `SET ${(setCondition ? setCondition.join(', ') : 1)} `
+        query += ` SET ${(setCondition ? setCondition.join(', ') : 1)} `
     }
-    query += 'WHERE id = ? ';
+    query += 'WHERE petition.id = ? ';
     values.push(petitionId);
     const conn = await getPool().getConnection();
-    await conn.query(query, [title, description, cost, petitionId] );
+    await conn.query(query, values );
     await conn.release();
     return;
 }
@@ -218,5 +224,5 @@ const checkTitleExistence = async (title: string):Promise<Petition[]> => {
 }
 
 
-export { showAll, getOnePetition, getPetitionById, getAllCategories, checkCategoryRef, updatePetition
-    , addPet, addSupportTier, checkTitleExistence, ckeckSupportTierTitleExistence }
+export { showAll, getOnePetition, getPetitionById, getAllCategories, checkCategoryRef, findPetitionIdByTitle, updatePetition
+    , addPet, addSupportTier, checkSupporter, checkTitleExistence, ckeckSupportTierTitleExistence, deletePetition }

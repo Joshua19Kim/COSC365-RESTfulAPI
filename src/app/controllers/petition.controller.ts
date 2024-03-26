@@ -3,7 +3,6 @@ import Logger from '../../config/logger';
 import {validate} from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as Petition from '../models/petitions.model';
-import {addSupportTier} from "../models/petitions.model";
 import {getUserByToken} from "../models/user.model";
 
 
@@ -120,12 +119,14 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
         if (req.body.title === "") {
             res.statusMessage = "Bad request! Need title name!"
             res.status(400).send();
+            return;
         }
         if (req.body.hasOwnProperty("title")) {
             const checkTitle = await Petition.checkTitleExistence(req.body.title);
              if (checkTitle.length !== 0) {
                 res.statusMessage = "Forbidden. Petition title already exists"
                 res.status(403).send();
+                return;
             }
         }
         if (req.body.hasOwnProperty("categoryId")) {
@@ -133,12 +134,14 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
             if (checkCategoryId.length === 0) {
                 res.statusMessage = "Bad request! It must reference an existing category."
                 res.status(400).send();
+                return;
             }
         }
         const supportTiers = req.body.supportTiers;
         if (supportTiers.length <= 0 || supportTiers.length > 3) {
             res.statusMessage = "Bad request! A petition must have between 1 and 3 supportTiers(inclusive)."
             res.status(400).send();
+            return;
         } else {
             // tslint:disable-next-line:prefer-for-of
             for(let i = 0; i < supportTiers.length; i++) {
@@ -146,18 +149,19 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
                 if (titleCheck.length !== 0) {
                     res.statusMessage = "Bad request! SupportTier title must be unique."
                     res.status(400).send();
+                    return;
                 }
             }
         }
         const ownerId = user[0].id;
         const newPetition = await Petition.addPet(req.body.title, req.body.description, req.body.categoryId, ownerId);
+        const petition = await Petition.findPetitionIdByTitle(req.body.title);
         // tslint:disable-next-line:prefer-for-of
         for(let i = 0; i < supportTiers.length; i++) {
-            const newSupportTier = await Petition.addSupportTier(supportTiers[i].title, supportTiers[i].description, supportTiers[i].cost);
+            const newSupportTier = await Petition.addSupportTier(supportTiers[i].title, supportTiers[i].description, supportTiers[i].cost, petition[0].petitionId);
         }
-
-        res.statusMessage = "OK";
-        res.status(200).send();
+        res.statusMessage = "Created";
+        res.status(201).send(petition[0]);
         return;
     } catch (err) {
         Logger.error(err);
@@ -190,7 +194,7 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         }
         const petitionId = parseInt(req.params.id, 10);
         const petition = (await Petition.getPetitionById(petitionId));
-        if (petition.petitionId === null ){
+        if (petition === undefined ){
             res.statusMessage = "Not Found. No petition found with id."
             res.status(404).send();
             return;
@@ -213,12 +217,12 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         if (req.body.hasOwnProperty("description")) {
             description = req.body.description;
         }
-        let cost = null;
-        if (req.body.hasOwnProperty("cost")) {
-            cost = req.body.cost;
+        let categoryId = null;
+        if (req.body.hasOwnProperty("categoryId")) {
+            categoryId = req.body.categoryId;
         }
 
-        await Petition.updatePetition(req.body.title, req.body.description, req.body.cost, petitionId);
+        await Petition.updatePetition(title, description, categoryId, petitionId);
 
         res.statusMessage = "OK";
         res.status(200).send();
@@ -232,10 +236,42 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
 }
 
 const deletePetition = async (req: Request, res: Response): Promise<void> => {
+    Logger.http("Delete petition!");
     try{
-        // Your code goes here
-        res.statusMessage = "Not Implemented Yet!";
-        res.status(501).send();
+        const token = req.get('X-Authorization');
+        const user = await getUserByToken(token);
+        if (user.length === 0) {
+            res.statusMessage = `Unauthorized`;
+            res.status(401).send();
+            return;
+        }
+        const validation = await validate(schemas.petition_patch, req.body);
+        if (validation !== true) {
+            res.statusMessage = 'Bad Request. Invalid information';
+            res.status(400).send();
+            return;
+        }
+        const petitionId = parseInt(req.params.id, 10);
+        const petition = (await Petition.getPetitionById(petitionId));
+        if (petition === undefined ){
+            res.statusMessage = "Not Found. No petition found with id."
+            res.status(404).send();
+            return;
+        }
+        if (petition.authToken === null || petition.authToken !== token) {
+            res.statusMessage = "Forbidden. Only the owner of a petition may change it.";
+            res.status(403).send();
+            return;
+        }
+        const supporter = await Petition.checkSupporter(petitionId);
+        if (supporter.length !== 0) {
+            res.statusMessage = "Forbidden. Can not delete a petition with one or more supporters.";
+            res.status(403).send();
+            return;
+        }
+        await Petition.deletePetition(petitionId);
+        res.statusMessage = "OK Deleted";
+        res.status(200).send();
         return;
     } catch (err) {
         Logger.error(err);
