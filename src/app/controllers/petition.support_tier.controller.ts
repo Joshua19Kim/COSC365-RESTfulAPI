@@ -120,7 +120,7 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
         if (req.body.hasOwnProperty("cost")) {
             cost = req.body.cost;
         }
-        await SupportTier.editSupportTier(title, description, cost, petitionId);
+        await SupportTier.editSupportTier(title, description, cost, petitionId, supportTierId);
         res.statusMessage = "OK! Edited supportTier";
         res.status(200).send();
         return;
