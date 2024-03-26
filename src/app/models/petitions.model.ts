@@ -143,37 +143,20 @@ const checkCategoryRef  = async (categoryId: string):Promise<Category[]> => {
     await conn.release();
     return category;
 }
-const ckeckSupportTierTitleExistence = async (supportTierTitle: string):Promise<SupportTier[]> => {
-    const conn = await getPool().getConnection();
-    const query = 'SELECT * FROM support_tier WHERE title = ?';
-    const [supportTier] = await conn.query(query, [supportTierTitle]);
-    await conn.release();
-    return supportTier;
-}
-
 const addPet = async (title:string, description:string, categoryId:number, ownerId:number):Promise<ResultSetHeader> => {
-    const datenow = Date.now();
     const conn = await getPool().getConnection();
     const query = 'INSERT INTO petition (title, description, category_id, creation_date, owner_id) VALUES ( ? , ? , ?, NOW(), ? )';
-    const [result] = await conn.query(query, [title, description, categoryId, ownerId ]);
+    const [result] = await conn.query(query, [ title, description, categoryId, ownerId ]);
     await conn.release();
     return result;
 }
 const findPetitionIdByTitle = async (title:string):Promise<Petition[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT id as petitionId FROM petition WHERE title = ?';
-    const [petition] = await conn.query(query, [title]);
+    const [petition] = await conn.query(query, [ title ]);
     await conn.release();
     return petition;
 }
-const addSupportTier = async (title:string, description:string, cost:number, petitionId:number):Promise<ResultSetHeader> => {
-    const conn = await getPool().getConnection();
-    const query = 'INSERT INTO support_tier (title, description, cost, petition_id) VALUES ( ? , ? , ? , ? )';
-    const [result] = await conn.query(query, [title, description, cost, petitionId]);
-    await conn.release();
-    return result;
-}
-
 const checkSupporter = async (petitionId: number):Promise<Supporter[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT * FROM supporter WHERE petition_id = ?';
@@ -214,7 +197,6 @@ const updatePetition = async (title: string, description: string, categoryId: nu
     await conn.release();
     return;
 }
-
 const checkTitleExistence = async (title: string):Promise<Petition[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT * FROM petition WHERE title = ?';
@@ -224,5 +206,6 @@ const checkTitleExistence = async (title: string):Promise<Petition[]> => {
 }
 
 
+
 export { showAll, getOnePetition, getPetitionById, getAllCategories, checkCategoryRef, findPetitionIdByTitle, updatePetition
-    , addPet, addSupportTier, checkSupporter, checkTitleExistence, ckeckSupportTierTitleExistence, deletePetition }
+    , addPet, checkSupporter, checkTitleExistence, deletePetition }

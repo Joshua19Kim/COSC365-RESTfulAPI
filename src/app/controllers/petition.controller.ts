@@ -4,6 +4,8 @@ import {validate} from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as Petition from '../models/petitions.model';
 import {getUserByToken} from "../models/user.model";
+import * as SupportTier from "../models/supportTier.model";
+
 
 
 const getAllPetitions = async (req: Request, res: Response): Promise<void> => {
@@ -137,6 +139,9 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
                 return;
             }
         }
+        const ownerId = user[0].id;
+        const newPetition = await Petition.addPet(req.body.title, req.body.description, req.body.categoryId, ownerId);
+        const petition = await Petition.findPetitionIdByTitle(req.body.title);
         const supportTiers = req.body.supportTiers;
         if (supportTiers.length <= 0 || supportTiers.length > 3) {
             res.statusMessage = "Bad request! A petition must have between 1 and 3 supportTiers(inclusive)."
@@ -145,7 +150,7 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
         } else {
             // tslint:disable-next-line:prefer-for-of
             for(let i = 0; i < supportTiers.length; i++) {
-                const titleCheck = await Petition.ckeckSupportTierTitleExistence(supportTiers[i].title)
+                const titleCheck = await SupportTier.checkSupportTierTitleExistence(supportTiers[i].title, petition[0].petitionId )
                 if (titleCheck.length !== 0) {
                     res.statusMessage = "Bad request! SupportTier title must be unique."
                     res.status(400).send();
@@ -153,12 +158,9 @@ const addPetition = async (req: Request, res: Response): Promise<void> => {
                 }
             }
         }
-        const ownerId = user[0].id;
-        const newPetition = await Petition.addPet(req.body.title, req.body.description, req.body.categoryId, ownerId);
-        const petition = await Petition.findPetitionIdByTitle(req.body.title);
         // tslint:disable-next-line:prefer-for-of
         for(let i = 0; i < supportTiers.length; i++) {
-            const newSupportTier = await Petition.addSupportTier(supportTiers[i].title, supportTiers[i].description, supportTiers[i].cost, petition[0].petitionId);
+            const newSupportTier = await SupportTier.addOneSupportTier(supportTiers[i].title, supportTiers[i].description, supportTiers[i].cost, petition[0].petitionId);
         }
         res.statusMessage = "Created";
         res.status(201).send(petition[0]);
