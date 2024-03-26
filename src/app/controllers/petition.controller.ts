@@ -247,13 +247,12 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
             res.status(401).send();
             return;
         }
-        const validation = await validate(schemas.petition_patch, req.body);
-        if (validation !== true) {
-            res.statusMessage = 'Bad Request. Invalid information';
+        const petitionId = parseInt(req.params.id, 10);
+        if ( isNaN(petitionId) ) {
+            res.statusMessage = "Bad Request. ID must be an integer.";
             res.status(400).send();
             return;
         }
-        const petitionId = parseInt(req.params.id, 10);
         const petition = (await Petition.getPetitionById(petitionId));
         if (petition === undefined ){
             res.statusMessage = "Not Found. No petition found with id."

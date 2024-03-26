@@ -24,14 +24,21 @@ const checkSupportTierWithIds = async (supportTierId: number, petitionId: number
     await conn.release();
     return supportTier;
 }
-const addOneSupportTier = async (title:string, description:string, cost:number, petitionId:number):Promise<ResultSetHeader> => {
+const addOneSupportTier = async (title:string,
+                                 description:string,
+                                 cost:number,
+                                 petitionId:number ):Promise<ResultSetHeader> => {
     const conn = await getPool().getConnection();
     const query = 'INSERT INTO support_tier (title, description, cost, petition_id) VALUES ( ? , ? , ? , ? )';
     const [result] = await conn.query(query, [title, description, cost, petitionId]);
     await conn.release();
     return result;
 }
-const editSupportTier = async (title:string, description:string, cost:number, petitionId:number, supportTierId:number):Promise<void> => {
+const editSupportTier = async (title:string,
+                               description:string,
+                               cost:number,
+                               petitionId:number,
+                               supportTierId:number ):Promise<void> => {
     const conn = await getPool().getConnection();
     const query = 'UPDATE support_tier SET title = ?, description = ?, cost = ? WHERE petition_id = ? AND id = ?';
     await conn.query(query, [title, description, cost, petitionId, supportTierId ]);
@@ -44,5 +51,12 @@ const checkSupporterWithId = async (supportTierId: number, petitionId: number ):
     await conn.release();
     return supporter;
 }
+const deleteOneSupportTier = async (supportTierId: number, petitionId: number  ): Promise<void> => {
+    const conn = await getPool().getConnection();
+    const query = 'DELETE FROM support_tier WHERE id = ? AND petition_id';
+    await conn.query(query, [supportTierId, petitionId]);
+    await conn.release();
+}
 
-export { addOneSupportTier, checkSupportTierTitleExistence, checkSupportTier, checkSupportTierWithIds, editSupportTier, checkSupporterWithId}
+export { addOneSupportTier, checkSupportTierTitleExistence, checkSupportTier, checkSupportTierWithIds
+    , editSupportTier, checkSupporterWithId, deleteOneSupportTier}
