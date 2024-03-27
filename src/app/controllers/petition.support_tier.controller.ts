@@ -45,7 +45,7 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
         const titleCheck = await SupportTier.checkSupportTierTitleExistence(req.body.title, petitionId);
         if (titleCheck.length !== 0) {
             res.statusMessage = "Bad request! SupportTier title must be unique within its petition."
-            res.status(400).send();
+            res.status(403).send();
             return;
         }
         const checkExistingNum = await SupportTier.getSupportTier(petitionId);
@@ -105,7 +105,7 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
             res.status(403).send();
             return;
         }
-        const supporter = await Supporter.checkSupporterWithAllIds(supportTierId, petitionId, user[0].id);
+        const supporter = await Supporter.checkSupporterWithAllIds(supportTierId, petitionId);
         if (supporter.length !== 0) {
             res.statusMessage = "Forbidden. Can not edit a support tier if a supporter already exists for it."
             res.status(403).send();
@@ -169,7 +169,7 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
             res.status(403).send();
             return;
         }
-        const supporter = await Supporter.checkSupporterWithAllIds(supportTierId, petitionId, user[0].id);
+        const supporter = await Supporter.checkSupporterWithAllIds(supportTierId, petitionId);
         if (supporter.length !== 0) {
             res.statusMessage = "Forbidden. Can not delete a support tier if a supporter already exists for it"
             res.status(403).send();

@@ -72,7 +72,7 @@ const addSupporter = async (req: Request, res: Response): Promise<void> => {
             res.status(404).send();
             return;
         }
-        const supporter = (await Supporter.checkSupporterWithAllIds(petitionId, req.body.supportTierId, user[0].id));
+        const supporter = (await Supporter.checkSupporterWithIds(petitionId, req.body.supportTierId, user[0].id));
         if (supporter.length !== 0 ){
             res.statusMessage = "Forbidden. Already supported at this tier."
             res.status(403).send();

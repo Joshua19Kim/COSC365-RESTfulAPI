@@ -19,7 +19,14 @@ const getSupporter = async (petitionId: number ):Promise<SupportTier[]> => {
     await conn.release();
     return supporter;
 }
-const checkSupporterWithAllIds = async (petitionId: number, supportTierId: number, userId: number ):Promise<Supporter[]> => {
+const checkSupporterWithAllIds = async (petitionId: number, supportTierId: number ):Promise<Supporter[]> => {
+    const conn = await getPool().getConnection();
+    const query = 'SELECT * FROM supporter WHERE petition_id = ? AND support_tier_id = ?';
+    const [supporter] = await conn.query(query, [petitionId, supportTierId]);
+    await conn.release();
+    return supporter;
+}
+const checkSupporterWithIds = async (petitionId: number, supportTierId: number, userId: number ):Promise<Supporter[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT * FROM supporter WHERE petition_id = ? AND support_tier_id = ? AND user_id = ?';
     const [supporter] = await conn.query(query, [petitionId, supportTierId, userId]);
@@ -36,4 +43,4 @@ const addOneSupporter = async (petitionId: number, supportTierId: number, userId
 
 
 
-export { getSupporter, checkSupporterWithAllIds, addOneSupporter }
+export { getSupporter, checkSupporterWithAllIds, checkSupporterWithIds, addOneSupporter }
