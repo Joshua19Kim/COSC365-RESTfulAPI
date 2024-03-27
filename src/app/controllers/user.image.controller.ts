@@ -18,6 +18,7 @@ const getImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const [image, mimetype]  = await imageModel.readImage(user[0].filename)
+        res.statusMessage = "OK"
         res.status(200).contentType(mimetype).send(image)
     }
     catch (err) {
@@ -38,7 +39,7 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const user = (await Users.getUserById(userId));
-        if (!user[0]) {
+        if (user.length ===0) {
             res.statusMessage = "Not Found. No such user with ID given"
             res.status(404).send();
             return;
@@ -47,10 +48,6 @@ const setImage = async (req: Request, res: Response): Promise<void> => {
         if(user[0].authToken !== token) {
             res.statusMessage = "Forbidden. Can not change another user profile photo";
             res.status(403).send();
-            return;
-        }
-        if(user == null) {
-            res.status(404).send();
             return;
         }
         const mimeType = req.header('Content-Type');

@@ -196,12 +196,12 @@ const editPetition = async (req: Request, res: Response): Promise<void> => {
         }
         const petitionId = parseInt(req.params.id, 10);
         const petition = (await Petition.getPetitionById(petitionId));
-        if (petition === undefined ){
+        if (petition.length === 0 ){
             res.statusMessage = "Not Found. No petition found with id."
             res.status(404).send();
             return;
         }
-        if (petition.authToken === null || petition.authToken !== token) {
+        if (petition[0].authToken === null || petition[0].authToken !== token) {
             res.statusMessage = "Only the owner of a petition may change it.";
             res.status(403).send();
             return;
@@ -254,12 +254,12 @@ const deletePetition = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const petition = (await Petition.getPetitionById(petitionId));
-        if (petition === undefined ){
+        if (petition.length === 0 ){
             res.statusMessage = "Not Found. No petition found with id."
             res.status(404).send();
             return;
         }
-        if (petition.authToken === null || petition.authToken !== token) {
+        if (petition[0].authToken === null || petition[0].authToken !== token) {
             res.statusMessage = "Forbidden. Only the owner of a petition may change it.";
             res.status(403).send();
             return;

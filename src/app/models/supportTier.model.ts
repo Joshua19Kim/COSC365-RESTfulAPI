@@ -10,7 +10,7 @@ const checkSupportTierTitleExistence = async (supportTierTitle: string, petition
     return supportTier;
 }
 
-const checkSupportTier = async (petitionId: number ):Promise<SupportTier[]> => {
+const getSupportTier = async (petitionId: number ):Promise<SupportTier[]> => {
     const conn = await getPool().getConnection();
     const query = 'SELECT * FROM support_tier WHERE petition_id = ?';
     const [supportTier] = await conn.query(query, [petitionId]);
@@ -58,5 +58,5 @@ const deleteOneSupportTier = async (supportTierId: number, petitionId: number  )
     await conn.release();
 }
 
-export { addOneSupportTier, checkSupportTierTitleExistence, checkSupportTier, checkSupportTierWithIds
-    , editSupportTier, checkSupporterWithId, deleteOneSupportTier}
+export { addOneSupportTier, checkSupportTierTitleExistence, getSupportTier, checkSupportTierWithIds
+    , editSupportTier, deleteOneSupportTier}

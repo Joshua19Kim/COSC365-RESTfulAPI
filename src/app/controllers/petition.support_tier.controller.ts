@@ -5,6 +5,8 @@ import {validate} from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as Petition from "../models/petitions.model";
 import * as SupportTier from "../models/supportTier.model";
+import * as Supporter from "../models/supporter.model";
+import {checkSupporterWithAllIds} from "../models/supporter.model";
 
 
 const addSupportTier = async (req: Request, res: Response): Promise<void> => {
@@ -30,12 +32,12 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
         }
         const petitionId = parseInt(req.params.id, 10);
         const petition = (await Petition.getPetitionById(petitionId));
-        if (petition === undefined ){
+        if (petition.length === 0 ){
             res.statusMessage = "Not Found. No petition found with id."
             res.status(404).send();
             return;
         }
-        if (petition.authToken === null || petition.authToken !== token) {
+        if (petition[0].authToken === null || petition[0].authToken !== token) {
             res.statusMessage = "Forbidden. Only the owner of a petition may modify it.";
             res.status(403).send();
             return;
@@ -46,9 +48,9 @@ const addSupportTier = async (req: Request, res: Response): Promise<void> => {
             res.status(400).send();
             return;
         }
-        const checkExistingNum = await SupportTier.checkSupportTier(petitionId);
+        const checkExistingNum = await SupportTier.getSupportTier(petitionId);
         if (checkExistingNum.length >= 3) {
-            res.statusMessage = "Forbidden. Can add a support tier if 3 already exist."
+            res.statusMessage = "Forbidden. Cannot add a support tier if 3 already exist."
             res.status(403).send();
             return;
         }
@@ -87,18 +89,23 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const petition = await Petition.getPetitionById(petitionId);
+        if (petition.length === 0 ){
+            res.statusMessage = "Not Found. No support tier found with ids."
+            res.status(404).send();
+            return;
+        }
         const supportTier = (await SupportTier.checkSupportTierWithIds(supportTierId, petitionId));
         if (supportTier.length === 0 ){
             res.statusMessage = "Not Found. No support tier found with ids."
             res.status(404).send();
             return;
         }
-        if (petition.authToken === null || petition.authToken !== token) {
+        if (petition[0].authToken === null || petition[0].authToken !== token) {
             res.statusMessage = "Forbidden. Only the owner of a petition may modify it.";
             res.status(403).send();
             return;
         }
-        const supporter = await SupportTier.checkSupporterWithId(supportTierId, petitionId);
+        const supporter = await Supporter.checkSupporterWithAllIds(supportTierId, petitionId, user[0].id);
         if (supporter.length !== 0) {
             res.statusMessage = "Forbidden. Can not edit a support tier if a supporter already exists for it."
             res.status(403).send();
@@ -157,18 +164,18 @@ const deleteSupportTier = async (req: Request, res: Response): Promise<void> => 
             res.status(404).send();
             return;
         }
-        if (petition.authToken === null || petition.authToken !== token) {
+        if (petition[0].authToken === null || petition[0].authToken !== token) {
             res.statusMessage = "Forbidden. Only the owner of a petition may delete it.";
             res.status(403).send();
             return;
         }
-        const supporter = await SupportTier.checkSupporterWithId(supportTierId, petitionId);
+        const supporter = await Supporter.checkSupporterWithAllIds(supportTierId, petitionId, user[0].id);
         if (supporter.length !== 0) {
             res.statusMessage = "Forbidden. Can not delete a support tier if a supporter already exists for it"
             res.status(403).send();
             return;
         }
-        const checkExistingNum = await SupportTier.checkSupportTier(petitionId);
+        const checkExistingNum = await SupportTier.getSupportTier(petitionId);
         if (checkExistingNum.length === 1) {
             res.statusMessage = "Forbidden. Can not remove a support tier if it is the only one for a petition."
             res.status(403).send();

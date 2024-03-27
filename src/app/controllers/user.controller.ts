@@ -49,7 +49,6 @@ const login = async (req: Request, res: Response): Promise<void> => {
         res.status(401).send();
         return;
     }
-
     try{
         const token = await users.createToken(email);
         const userId = user[0].id;
@@ -82,29 +81,31 @@ const logout = async (req: Request, res: Response): Promise<void> => {
 
 const view = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Show the user details');
-    if ( isNaN(parseInt(req.params.id, 10))) {
-        res.statusMessage = "ID must be an integer.";
-        res.status(404).send();
-        return;
-    }
-    const id = parseInt(req.params.id, 10);
-    const user = await users.getUserById(id);
-    if (!user[0]) {
-        res.statusMessage = "Not Found. No user with specified ID";
-        res.status(404).send();
-        return;
-    }
-    const firstName = user[0].firstName;
-    const lastName = user[0].lastName;
-    const email = user[0].email;
-    const token = user[0].authToken
-    if (token === null) {
-        res.status(200).json({firstName, lastName});
-        return;
-    }
     try{
+        if ( isNaN(parseInt(req.params.id, 10))) {
+            res.statusMessage = "ID must be an integer.";
+            res.status(404).send();
+            return;
+        }
+        const id = parseInt(req.params.id, 10);
+        const user = await users.getUserById(id);
+        if ( user.length ===0 ) {
+            res.statusMessage = "Not Found. No user with specified ID";
+            res.status(404).send();
+            return;
+        }
+        const firstName = user[0].firstName;
+        const lastName = user[0].lastName;
+        const email = user[0].email;
+        const token = req.get('X-Authorization');
+        if(user[0].authToken === undefined || user[0].authToken !== token) {
+            res.statusMessage = "OK, but unauthenticated request."
+            res.status(200).json({firstName, lastName});
+            return;
+        }
+        // const userToken = user[0].authToken
         res.statusMessage = "OK";
-        res.status(200).json({firstName, lastName, email});
+        res.status(200).json({email, firstName, lastName});
         return;
     } catch (err) {
         Logger.error(err);
@@ -124,6 +125,11 @@ const update = async (req: Request, res: Response): Promise<void> => {
             return;
         }
         const user = await users.getUserById(id);
+        if (user.length ===0) {
+            res.statusMessage = "Not Found. No user with specified ID"
+            res.status(404).send();
+            return;
+        }
         const validation = await valid.validate(schemas.user_edit, req.body);
         if (validation !== true) {
             res.statusMessage = 'Bad Request. Invalid information';

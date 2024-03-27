@@ -81,7 +81,7 @@ const showAll = async (petitionQuery: PetitionQuery):Promise<PetitionReturn> => 
     return {petitions, count} as PetitionReturn;
 
 }
-const getOnePetition = async (id: number):Promise<OnePetitionReturn> => {
+const getOnePetition = async (petitionId: number):Promise<OnePetitionReturn> => {
     const petitionQuery = 'SELECT ' +
         'Pet.id as petitionId, ' +
         'Pet.title as title, ' +
@@ -89,23 +89,23 @@ const getOnePetition = async (id: number):Promise<OnePetitionReturn> => {
         'Pet.owner_id as ownerId, ' +
         'User.first_name as ownerFirstName, ' +
         'User.last_name as ownerLastName, ' +
-        '(SELECT COUNT(Sup.id) FROM supporter Sup JOIN petition Pet ON Sup.petition_id = Pet.id WHERE Sup.petition_id = Pet.id) as numberOfSupporters, ' +
+        '(SELECT COUNT(Sup.id) FROM supporter Sup JOIN petition Pet ON Sup.petition_id = Pet.id WHERE Pet.id = ?) as numberOfSupporters, ' +
         'Pet.creation_date as creationDate, ' +
         'Pet.description as description, '+
-        '(SELECT SUM(SupTier.cost) FROM support_tier SupTier JOIN petition Pet ON SupTier.petition_id = Pet.id) as moneyRaised ' +
+        '(SELECT SUM(SupTier.cost) FROM support_tier SupTier JOIN supporter Sup ON SupTier.petition_id = Sup.petition_id AND SupTier.id = Sup.support_tier_id WHERE Sup.petition_id = ?) as moneyRaised ' +
         'FROM petition as Pet ' +
         'JOIN user User ON Pet.owner_id = User.id ' +
         'WHERE Pet.id = ?';
     const supportTiersQuery = 'SELECT ' +
-        'SupTier.title, SupTier.description, SupTier.cost, SupTier.id ' +
+        'SupTier.id as supportTierId, SupTier.title as title, SupTier.description as description, SupTier.cost as cost  ' +
         'FROM support_tier SupTier ' +
         'JOIN petition Pet ON SupTier.petition_id = Pet.id WHERE Pet.id = ?';
 
-    const petitionRows = await getPool().query(petitionQuery, id);
+    const petitionRows = await getPool().query(petitionQuery, [petitionId, petitionId, petitionId]);
     if (petitionRows[0].length ===0) {
         return undefined;
     }
-    const supportTiersQueryRows = await getPool().query(supportTiersQuery, id);
+    const supportTiersQueryRows = await getPool().query(supportTiersQuery, petitionId);
 
     const onePetition: OnePetitionReturn = {
         petitionId: petitionRows[0][0].petitionId,
@@ -117,18 +117,26 @@ const getOnePetition = async (id: number):Promise<OnePetitionReturn> => {
         numberOfSupporters: petitionRows[0][0].numberOfSupporters,
         creationDate: petitionRows[0][0].creationDate,
         description: petitionRows[0][0].description,
-        moneyRaised: petitionRows[0][0].moneyRaised,
+        moneyRaised: parseInt(petitionRows[0][0].moneyRaised,10),
         supportTiers: supportTiersQueryRows[0],
     };
     return onePetition;
 }
 
-const getPetitionById = async (id: number): Promise<PetitionUpdate> => {
+const getPetitionById = async (id: number): Promise<PetitionWithAuth[]> => {
     const conn = await getPool().getConnection();
-    const query = 'SELECT Pet.title as title, Pet.description as description, Pet.id as petitionId, User.auth_token as authToken FROM petition Pet JOIN  user User on Pet.owner_id = User.id WHERE Pet.id = ?';
+    const query = 'SELECT ' +
+        'Pet.title as title, ' +
+        'Pet.description as description, ' +
+        'Pet.id as petitionId, ' +
+        'User.auth_token as authToken, ' +
+        'Pet.owner_id as ownerId, ' +
+        'Pet.image_filename as filename ' +
+        'FROM petition Pet ' +
+        'JOIN  user User on Pet.owner_id = User.id WHERE Pet.id = ?';
     const [ petition ] = await conn.query( query, [id]);
     await conn.release();
-    return petition[0];
+    return petition;
 }
 
 const getAllCategories = async (): Promise<Category[]> => {
@@ -204,8 +212,11 @@ const checkTitleExistence = async (title: string):Promise<Petition[]> => {
     await conn.release();
     return petition;
 }
-
+const setImageFile = async (petitionid: number, filename: string): Promise<void> => {
+    const query = `UPDATE petition SET image_filename = ? WHERE id = ?`;
+    await getPool().query(query, [filename, petitionid]);
+}
 
 
 export { showAll, getOnePetition, getPetitionById, getAllCategories, checkCategoryRef, findPetitionIdByTitle, updatePetition
-    , addPet, checkSupporter, checkTitleExistence, deletePetition }
+    , addPet, checkSupporter, checkTitleExistence, deletePetition, setImageFile }

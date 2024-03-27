@@ -33,11 +33,13 @@ type PetitionForView = {
     supportingCost:number
 }
 
-type PetitionUpdate = {
+type PetitionWithAuth = {
     petitionId: number,
     title: string,
     description: string,
     authToken: string
+    ownerId: number
+    filename: string
 }
 
 
@@ -56,7 +58,7 @@ type OnePetitionReturn = {
     "numberOfSupporters": number,
     "creationDate": string,
     "description": string,
-    "moneyRaised": string,
+    "moneyRaised": number,
     "supportTiers": [{"title":string, "description":string, "cost":number, "id": number}]
 }
 type PetitionQuery = {
