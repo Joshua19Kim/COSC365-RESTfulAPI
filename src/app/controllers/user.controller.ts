@@ -76,8 +76,18 @@ const login = async (req: Request, res: Response): Promise<void> => {
 
 const logout = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Log out')
-    const token = req.get('X-Authorization');
     try{
+        const token = req.get('X-Authorization');
+        if (token === undefined) {
+            res.statusMessage = "Unauthorized. Cannot log out if you are not authenticated."
+            res.status(401).send();
+        }
+        const user = await users.getUserByToken(token);
+        if (user.length === 0 || token !== user[0].authToken) {
+            res.statusMessage = "UnAuthorized. Cannot log out if you are not authenticated.";
+            res.status(401).send();
+            return;
+        }
         await users.deleteToken(token);
         res.statusMessage = "Logged out!!";
         res.status(200).send();
