@@ -5,6 +5,7 @@ import * as valid from "./validationController";
 import * as schemas from '../resources/schemas.json';
 import * as secret from '../services/passwords';
 import {getUserByToken} from "../models/user.model";
+import {validate} from "./validationController";
 
 const register = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Register a new user into the server')
@@ -40,16 +41,26 @@ const register = async (req: Request, res: Response): Promise<void> => {
 
 const login = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Log in')
-
-    const email = req.body.email;
-    const password = req.body.password;
-    const user = await users.emailInUse(email);
-    if (!await users.checkPassword(email, password) || user.length === 0) {
-        res.statusMessage = "UnAuthorized. Incorrect email/password";
-        res.status(401).send();
-        return;
-    }
     try{
+        const validation = await validate(schemas.user_login, req.body);
+        if (validation !== true) {
+            res.statusMessage = `Bad Request. Invalid information`;
+            res.status(400).send();
+            return;
+        }
+        const email = req.body.email;
+        const password = req.body.password;
+        const user = await users.emailInUse(email);
+        if (user.length === 0) {
+            res.statusMessage = "UnAuthorized. Incorrect email";
+            res.status(401).send();
+            return;
+        }
+        if (!await users.checkPassword(email, password)) {
+            res.statusMessage = "UnAuthorized. Incorrect password";
+            res.status(401).send();
+            return;
+        }
         const token = await users.createToken(email);
         const userId = user[0].id;
         res.statusMessage = "Successfully gave a permission!";
@@ -119,6 +130,12 @@ const update = async (req: Request, res: Response): Promise<void> => {
     Logger.http('Updating details');
     try{
         const id= parseInt(req.params.id, 10);
+        const token = req.get('X-Authorization');
+        if (id === undefined || token === undefined) {
+            res.statusMessage = "Unauthorized or Invalid currentPassword";
+            res.status(401).send();
+            return;
+        }
         if ( isNaN(id)) {
             res.statusMessage = "Not Found. No user with specified ID";
             res.status(404).send();
@@ -136,18 +153,42 @@ const update = async (req: Request, res: Response): Promise<void> => {
             res.status(400).send();
             return;
         }
+        const userFromToken = await users.getUserByToken(token);
+        if (userFromToken[0].id !== id) {
+            res.statusMessage = "Forbidden. Cannot edit another user's information."
+            res.status(403).send();
+            return;
+        }
+        if (userFromToken[0].authToken === null || userFromToken[0].authToken !== user[0].authToken || user[0].authToken === null) {
+            res.statusMessage = "Unauthorized or Invalid currentPassword";
+            res.status(401).send();
+            return;
+        }
         if (req.body.hasOwnProperty('email')) {
             const checkEmail = await users.emailInUse(req.body.email);
-            if ( checkEmail.length === 0) {
+            if ( checkEmail.length !== 0) {
                 res.statusMessage = "Email is already in use."
                 res.status(403).send();
                 return;
             }
             user[0].email = req.body.email;
         }
-        if (req.body.hasOwnProperty('password') && req.body.hasOwnProperty('currentPassword')) {
-            if (req.body.password === req.body.currentPassword) {
-                res.statusMessage = "Identical current and new passwords/"
+        const currentPasswordExistence = req.body.hasOwnProperty('currentPassword');
+        const passwordExistence = req.body.hasOwnProperty('password');
+        if (!currentPasswordExistence) {
+            res.statusMessage = "Invalid Information. need password"
+            res.status(400).send();
+            return;
+        }
+        const currentPassword = req.body.currentPassword;
+        if (!secret.compare(currentPassword, user[0].password)) {
+            res.statusMessage = "Invalid/Wrong currentPassword"
+            res.status(401).send();
+            return;
+        }
+        if (passwordExistence) {
+            if (req.body.password === currentPassword) {
+                res.statusMessage = "Identical current and new passwords"
                 res.status(403).send();
                 return;
             }
@@ -171,12 +212,7 @@ const update = async (req: Request, res: Response): Promise<void> => {
                 user[0].lastName = req.body.lastName;
             }
         }
-        const token = req.get('X-Authorization');
-        if (user[0].authToken === null || user[0].authToken !== token) {
-            res.statusMessage = "Unauthorized or Invalid currentPassword";
-            res.status(401).send();
-            return;
-        }
+
         await users.updateDetails(id, user[0].email, user[0].firstName, user[0].lastName, user[0].password);
         res.statusMessage = "Successfully patched";
         res.status(200).send();

@@ -121,7 +121,7 @@ const editSupportTier = async (req: Request, res: Response): Promise<void> => {
             }
             title = req.body.title;
         }
-        let description = supportTier[0].title;
+        let description = supportTier[0].description;
         if (req.body.hasOwnProperty("description")) {
             description = req.body.description;
         }

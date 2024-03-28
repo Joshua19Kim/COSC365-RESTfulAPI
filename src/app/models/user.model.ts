@@ -51,7 +51,8 @@ const getUserById = async (id: number): Promise<User[]> => {
         'last_name as lastName, ' +
         'auth_token as authToken, ' +
         'email, ' +
-        'image_filename as filename ' +
+        'image_filename as filename, ' +
+        'password ' +
         'FROM user ' +
         'WHERE id = ?';
     const [ user ] = await conn.query( query, [id]);
