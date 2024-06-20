@@ -1,4 +1,4 @@
-# SENG365 Assignment 1 API Server (Petition Site)
+# SENG365 Assignment 1 API Server (Petition Site) - Grade[A+]
 
 ## Running locally
 
